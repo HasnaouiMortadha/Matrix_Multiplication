@@ -1,0 +1,71 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.all;
+use IEEE.NUMERIC_STD.ALL;
+
+entity matrix_multiplier is
+    Generic (
+        MATRIX_SIZE : integer := 4;  -- Size of the square matrix
+        DATA_WIDTH  : integer := 16   -- Bit width of the matrix elements
+    );
+    Port (
+        clk      : in  STD_LOGIC;
+        reset    : in  STD_LOGIC;
+        matrix_a : in  STD_LOGIC_VECTOR((MATRIX_SIZE * MATRIX_SIZE * DATA_WIDTH) - 1 downto 0);
+        matrix_b : in  STD_LOGIC_VECTOR((MATRIX_SIZE * MATRIX_SIZE * DATA_WIDTH) - 1 downto 0);
+        result   : out STD_LOGIC_VECTOR((MATRIX_SIZE * MATRIX_SIZE * DATA_WIDTH) - 1 downto 0)
+    );
+end matrix_multiplier;
+
+architecture Behavioral of matrix_multiplier is
+    type matrix_type is array (0 to MATRIX_SIZE - 1, 0 to MATRIX_SIZE - 1) of signed(DATA_WIDTH - 1 downto 0);
+    signal matrix_a_reg, matrix_b_reg : matrix_type;
+    signal result_reg                : matrix_type;
+
+begin
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            matrix_a_reg <= (others => (others => '0'));
+            matrix_b_reg <= (others => (others => '0'));
+            result_reg   <= (others => (others => '0'));
+        elsif rising_edge(clk) then
+            matrix_a_reg <= unpack_matrix(matrix_a);
+            matrix_b_reg <= unpack_matrix(matrix_b);
+
+            -- Matrix multiplication
+            for i in 0 to MATRIX_SIZE - 1 loop
+                for j in 0 to MATRIX_SIZE - 1 loop
+                    result_reg(i, j) <= (others => '0');
+                    for k in 0 to MATRIX_SIZE - 1 loop
+                        result_reg(i, j) <= result_reg(i, j) + matrix_a_reg(i, k) * matrix_b_reg(k, j);
+                    end loop;
+                end loop;
+            end loop;
+
+            result <= pack_matrix(result_reg);
+        end if;
+    end process;
+
+    -- Helper functions to unpack and pack matrices from/to STD_LOGIC_VECTOR
+    function unpack_matrix(vector : STD_LOGIC_VECTOR) return matrix_type is
+        variable matrix : matrix_type;
+    begin
+        for i in 0 to MATRIX_SIZE - 1 loop
+            for j in 0 to MATRIX_SIZE - 1 loop
+                matrix(i, j) := signed(vector((i * MATRIX_SIZE + j) * DATA_WIDTH + DATA_WIDTH - 1 downto (i * MATRIX_SIZE + j) * DATA_WIDTH));
+            end loop;
+        end loop;
+        return matrix;
+    end function;
+
+    function pack_matrix(matrix : matrix_type) return STD_LOGIC_VECTOR is
+        variable vector : STD_LOGIC_VECTOR((MATRIX_SIZE * MATRIX_SIZE * DATA_WIDTH) - 1 downto 0);
+    begin
+        for i in 0 to MATRIX_SIZE - 1 loop
+            for j in 0 to MATRIX_SIZE - 1 loop
+                vector((i * MATRIX_SIZE + j) * DATA_WIDTH + DATA_WIDTH - 1 downto (i * MATRIX_SIZE + j) * DATA_WIDTH) := std_logic_vector(matrix(i, j));
+            end loop;
+        end loop;
+        return vector;
+    end function;
+end Behavioral;
